@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Küber-detektiiv — Küberteadlikkuse mäng</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f9f8f6;
+    --surface: #ffffff;
+    --surface2: #f1efe8;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #888780;
+    --green: #1D9E75;
+    --green-bg: #EAF3DE;
+    --green-text: #27500A;
+    --red: #E24B4A;
+    --red-bg: #FCEBEB;
+    --red-text: #501313;
+    --purple: #7F77DD;
+    --purple-bg: #EEEDFE;
+    --purple-text: #3C3489;
+    --amber-bg: #FAEEDA;
+    --amber-text: #633806;
+    --blue-bg: #E6F1FB;
+    --blue-text: #0C447C;
+    --coral-bg: #FAECE7;
+    --coral-text: #712B13;
+    --radius: 10px;
+    --radius-sm: 7px;
+  }
+
+  body {
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px 48px;
+  }
+
+  #game {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* HUD */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .hud-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .hud-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; }
+  .hud-val { font-family: 'Share Tech Mono', monospace; font-size: 22px; font-weight: 600; }
+  .hud-val.score { color: var(--green); }
+  .hud-val.lives { color: #D85A30; letter-spacing: 2px; }
+  .bar-wrap { flex: 1; margin: 0 16px; }
+  .bar-label { font-size: 11px; color: var(--text3); margin-bottom: 5px; text-align: center; }
+  .bar-track { background: var(--surface2); border-radius: 4px; height: 7px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.5s ease; }
+
+  /* Scenario */
+  .scenario-box {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .scenario-tag {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .tag-email { background: var(--blue-bg); color: var(--blue-text); }
+  .tag-link { background: var(--amber-bg); color: var(--amber-text); }
+  .tag-social { background: var(--purple-bg); color: var(--purple-text); }
+  .tag-wifi { background: var(--coral-bg); color: var(--coral-text); }
+  .tag-parool { background: var(--green-bg); color: var(--green-text); }
+
+  .scenario-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; line-height: 1.3; }
+  .scenario-body { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+  .scenario-detail {
+    background: var(--surface2);
+    border-left: 3px solid var(--border2);
+    padding: 12px 16px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 13px;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    line-height: 1.75;
+    white-space: pre-wrap;
+  }
+
+  /* Choices */
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  @media (max-width: 480px) { .choices { grid-template-columns: 1fr; } }
+
+  .choice-btn {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 13px 15px;
+    font-size: 14px;
+    font-family: 'Rajdhani', sans-serif;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.45;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .choice-btn:hover:not(:disabled) { background: var(--surface2); border-color: var(--border2); transform: translateY(-1px); }
+  .choice-btn.correct { background: var(--green-bg); border-color: #639922; color: var(--green-text); }
+  .choice-btn.wrong { background: var(--red-bg); border-color: #A32D2D; color: var(--red-text); }
+  .choice-btn:disabled { cursor: default; transform: none; }
+
+  /* Feedback */
+  .feedback-box {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.65;
+    display: none;
+    border: 0.5px solid var(--border);
+  }
+  .feedback-box.correct { border-left: 3px solid #639922; }
+  .feedback-box.wrong { border-left: 3px solid var(--red); }
+
+  /* Next button */
+  .next-btn {
+    width: 100%;
+    padding: 13px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    display: none;
+    letter-spacing: 0.5px;
+    transition: background 0.15s;
+  }
+  .next-btn:hover { background: var(--surface); }
+
+  /* Start screen */
+  .start-screen, .end-screen { text-align: center; padding: 3rem 1.5rem; }
+  .ship-ascii {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text3);
+    line-height: 1.5;
+    margin-bottom: 24px;
+  }
+  .game-title {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .game-sub { font-size: 16px; color: var(--text2); margin-bottom: 20px; }
+  .game-desc { font-size: 14px; color: var(--text2); max-width: 400px; margin: 0 auto 30px; line-height: 1.7; }
+
+  .start-btn {
+    padding: 14px 44px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .start-btn:hover { background: var(--surface2); transform: translateY(-1px); }
+
+  /* End screen */
+  .final-score {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 56px;
+    font-weight: 600;
+    color: var(--green);
+    margin: 16px 0 6px;
+  }
+  .final-grade { font-size: 18px; margin-bottom: 20px; color: var(--text2); }
+  .final-tips {
+    text-align: left;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 0 0 24px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .tip-title { font-weight: 600; margin-bottom: 10px; font-size: 15px; }
+  .tip-item { margin-bottom: 7px; padding-left: 18px; position: relative; color: var(--text2); }
+  .tip-item::before { content: '→'; position: absolute; left: 0; color: var(--text3); }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .stat-val { font-family: 'Share Tech Mono', monospace; font-size: 26px; font-weight: 600; }
+
+  /* Misc */
+  .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
+</style>
+</head>
+<body>
+<div id="game">
+
+  <!-- START SCREEN -->
+  <div class="screen active" id="start-screen">
+    <div class="start-screen">
+      <div class="ship-ascii">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__|__<br>
+&nbsp;--o--o--o--<br>
+&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+~~~~~~~~~~~~~~~~~~
+      </div>
+      <div class="game-title">KÜBER-DETEKTIIV</div>
+      <div class="game-sub">Kaitse laev küberrünnakute eest</div>
+      <p class="game-desc">Pardal on sagenenud küberintsidendid. Sinu ülesanne on tuvastada ohud, teha õigeid otsuseid ja hoida meeskond turvaliselt.</p>
+      <button class="start-btn" onclick="startGame()">ALUSTA MISSIOONI</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div class="screen" id="game-screen">
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">Punktid</span>
+        <span class="hud-val score" id="score-val">0</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-label" id="progress-label">1 / 8</div>
+        <div class="bar-track"><div class="bar-fill" id="progress-bar" style="width:12.5%"></div></div>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Elud</span>
+        <span class="hud-val lives" id="lives-val">❤❤❤</span>
+      </div>
+    </div>
+
+    <div class="scenario-box">
+      <span class="scenario-tag" id="scenario-tag">EMAIL</span>
+      <div class="scenario-title" id="scenario-title">...</div>
+      <div class="scenario-body" id="scenario-body">...</div>
+      <div class="scenario-detail" id="scenario-detail"></div>
+    </div>
+
+    <div class="choices" id="choices"></div>
+    <div class="feedback-box" id="feedback-box"></div>
+    <button class="next-btn" id="next-btn" onclick="nextQuestion()">Järgmine oht →</button>
+  </div>
+
+  <!-- END SCREEN -->
+  <div class="screen" id="end-screen">
+    <div class="end-screen">
+      <div class="ship-ascii">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__|__<br>
+&nbsp;--o--o--o--<br>
+&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+~~~~~~~~~~~~~~~~~~
+      </div>
+      <div style="font-size:15px;color:var(--text2);">Missioon lõpetatud</div>
+      <div class="final-score" id="final-score">0</div>
+      <div class="final-grade" id="final-grade"></div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Õiged vastused</div>
+          <div class="stat-val" id="stat-correct" style="color:var(--green)">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Valed vastused</div>
+          <div class="stat-val" id="stat-wrong" style="color:var(--red)">0</div>
+        </div>
+      </div>
+      <div class="final-tips" id="final-tips"></div>
+      <button class="start-btn" onclick="restartGame()">MÄNGI UUESTI</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const questions = [
+  {
+    tag: 'email', tagClass: 'tag-email',
+    title: 'Kahtlane kiri IT-osakonnalt',
+    body: 'Madrus Ivanov sai kirja, mis väidetavalt tuli laeva IT-turvaosakonnalt. Mis on selles kirjas kahtlast?',
+    detail: 'Saatja: it-tugi@sh1p-secure.net\nSaaja: meeskond@laev.ee\nTeema: KIIRELOOMULINE! Vaheta parool kohe!\n\n"Lugupeetud töötaja, teie konto on\nkompromiteeritud. Klõpsake lingil ja\nsisestage oma andmed KOHE:\nbit.ly/laev123"',
+    choices: [
+      { text: 'Klõpsan lingil — kui IT palub, siis peab tegema', correct: false },
+      { text: 'See on andmepüük: kahtlane domeen, kunstlik kiirus, lühendatud link', correct: true },
+      { text: 'Edastan kirja kõigile laeval hoiatuseks', correct: false },
+      { text: 'Vastan ja palun täpsustust', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Õige! Andmepüügi tunnused: võltsitud domeen (sh1p sh1p asemel), kunstlik kiireloomulisus, varjatud bit.ly link. Teavita IT-osakonda ametliku kanali kaudu.',
+      wrong: '✗ See on klassikaline andmepüük! Domeen "sh1p-secure.net" on võltsing. Päris IT-osakond ei küsi kunagi andmeid väliste linkide kaudu. Teavita alati turvaofficeri!'
+    }
+  },
+  {
+    tag: 'wifi', tagClass: 'tag-wifi',
+    title: 'Avatud Wi-Fi võrk sadamas',
+    body: 'Laev seisab sadamas. Madrus näeb kahte Wi-Fi võrku ja tahab kontrollida töömeili.',
+    detail: 'Saadaolevad võrgud:\n\n  📶 SADAM_TASUTA_WIFI    (paroolita)\n  📶 SADAM_AMETLIK_5G    (parool: valve juures)\n\nMadrus kiirustab ja valib...',
+    choices: [
+      { text: 'SADAM_TASUTA_WIFI — kiirem, parooli pole vaja', correct: false },
+      { text: 'SADAM_AMETLIK_5G — ametlik võrk on turvalisem', correct: true },
+      { text: 'Kasutan mobiilset internetti või laeva VPN-i', correct: true },
+      { text: 'Ükskõik milline sobib, meil on ju HTTPS', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Õige! Avatud Wi-Fi ilma paroolita on lõks. Ründajad loovad võlts-levialasid ("Evil Twin"). Kasuta alati ametlikke võrke või VPN-i tundliku teabe edastamisel.',
+      wrong: '✗ Avatud Wi-Fi sadamas on väga ohtlik! "Evil Twin" rünnak: häkker loob sama nimega võrgu ja pealtkuulab kogu liikluse, sealhulgas paroolid ja meilid.'
+    }
+  },
+  {
+    tag: 'social', tagClass: 'tag-social',
+    title: 'Päring sotsiaalmeedias',
+    body: 'Laeva ohvitser sai LinkedInis sõnumi "ajakirjanikult", kes palub rääkida laeva marsruudist.',
+    detail: 'Alex Berg • 2. aste kontakt\n"Tere! Kirjutan artiklit mereveost.\nRääkige oma tavalisest marsruudist\nja sõiduplaanist? Olen väga tänulik,\nsee on avaldamiseks väga oluline."',
+    choices: [
+      { text: 'Räägin üldiselt — see pole ju saladus', correct: false },
+      { text: 'Keeldun ja teavitan turvaofficeri', correct: true },
+      { text: 'Palun saata toimetuse tunnistus', correct: false },
+      { text: 'Ignoreerin sõnumit', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Suurepärane! See on sotsiaaltehnilisus. Info marsruudi ja sõiduplaanikohta on tundlikud andmed. Sellised päringud tuleb edastada turvaofficerile.',
+      wrong: '✗ See on klassikaline sotsiaaltehnilisus! Isegi "süütu" teave marsruudi kohta võib aidata ründajatel. Kõik päringud laeva tegevuse kohta — turvaofficerile!'
+    }
+  },
+  {
+    tag: 'parool', tagClass: 'tag-parool',
+    title: 'Paroolipoliitika pardal',
+    body: 'Tuleb luua uus parool laeva navigatsioonisüsteemile. Milline valik on kõige turvalisem?',
+    detail: 'Süsteemi nõuded:\n- vähemalt 8 tähemärki\n- ei tohi korrata 3 viimast parooli\n- vahetus iga 90 päeva tagant',
+    choices: [
+      { text: 'Laev2024! — lihtne meeles pidada', correct: false },
+      { text: 'P@ss0rd — kasutan kõikjal, mugav', correct: false },
+      { text: 'Tr0op1k@-Ankur#7 — pikk ja keeruline', correct: true },
+      { text: '12345678 — kiire sisestada', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Õige! Pikad paroollaused sümbolite, numbrite ja eri registri tähtedega on parim kaitse. Veelgi parem on kasutada paroolihaldurit.',
+      wrong: '✗ See parool on ebaturvaline. Sõnaraamatusõnad, ilmsed asendused (@ asemel a, 0 asemel o) ja lühikesed paroolid murtakse sekunditega. Kasuta pikki unikaalseid lauseid!'
+    }
+  },
+  {
+    tag: 'link', tagClass: 'tag-link',
+    title: 'Salapärane USB-mälupulk',
+    body: 'Kajutis leiti mälupulk kirjaga "PALGALEHED 2024". Mida teha?',
+    detail: 'Mälupulk jäeti ühisesse kajutisse lauale.\nSisu pole teada.\nOmanikku ei ole tuvastatud.\n\n[?] Mida teha leiuga?',
+    choices: [
+      { text: 'Ühendan arvutiga — vaatan mis sees on', correct: false },
+      { text: 'Annan turvaofficerile üle, ühendamata', correct: true },
+      { text: 'Viskab prügi, et probleeme ei tekiks', correct: false },
+      { text: 'Ühendan isoleeritud arvutiga', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Õige! "Baiting" on levinud rünnak. USB-mälupulgad ahvatlevate nimetustega jäetakse tahtlikult maha. Ühendamisel — pahavara. Ainult turvaofficerile!',
+      wrong: '✗ See on "Baiting" (söödaga püüdmine) rünnak! Mälupulk jäeti meelega ahvatleva nimega. Ühendamine võib nakatada kogu laeva võrgu. Ära ühenda kunagi leitud andmekandjaid!'
+    }
+  },
+  {
+    tag: 'email', tagClass: 'tag-email',
+    title: 'Kiireloomuline ülekanne kaptenilt',
+    body: 'Raamatupidaja sai e-kirja, mis väidetavalt on kaptenilt, palvega kanda tarnijale kiiresti raha.',
+    detail: 'Saatja: kapten.ivanov@sh1p-logistika.com\nTeema: KIIRELOOMULINE — ülekanne tarnijale\n\n"Olen läbirääkimistel, pole aega\nselgitada. Kanna 15 000€ kontole\nIBAN: EE382200221020145685\nTäna kuni kell 17:00. See on väga tähtis!"',
+    choices: [
+      { text: 'Teen ülekande — kapten nõuab kiiresti', correct: false },
+      { text: 'Helistan kaptenile otse kinnituseks', correct: true },
+      { text: 'Vastan kirjale täpsustavate küsimustega', correct: false },
+      { text: 'Ootan — ehk kapten tuletab ise meelde', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Suurepärane! See on BEC-rünnak (Business Email Compromise). Kinnita alati finantstehinguid telefoni teel teadaoleval numbril — mitte kirjas olevate kontaktide kaudu.',
+      wrong: '✗ See on BEC-rünnak! Petturid murdsid või võltsisid juhi meili. Kunstlik kiireloomulisus, autoriteedirõhumine — klassikalised manipulatsioonid. Helista alati otse!'
+    }
+  },
+  {
+    tag: 'wifi', tagClass: 'tag-wifi',
+    title: 'Süsteemi uuendus merel',
+    body: 'Ilmub teade navigatsioonitarkvara uuenduse kohta, mis palub sisestada administraatori parooli.',
+    detail: 'SÜSTEEMITEADE\n━━━━━━━━━━━━━━━━━━━━\nNavSystem 3.2.1 uuendus\non saadaval. Sisestage\nadministraatori parool\ninstallimiseks:\n\n[__________________]\n         [OK]',
+    choices: [
+      { text: 'Sisestan parooli — uuendused on turvalisuse jaoks olulised', correct: false },
+      { text: 'Kontrollin allika üle IT-ga ja kinnitan', correct: true },
+      { text: 'Sulgen ja teavitan IT-osakonda', correct: true },
+      { text: 'Uuendan, aga vahetan parooli hiljem', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Õige! Legitiimsed süsteemid ei küsi paroole hüpikaknades. See võib olla andmepüügis aken või ründe kaudu kompromiteeritud tarkvara. IT-osakond kontrollib kõike.',
+      wrong: '✗ Tähelepanu! Päris uuendussüsteemid ei küsi parooli juhuslike hüpikakende kaudu. See on rünnaku tunnus. Teavita IT-osakonda enne mis tahes toiminguid!'
+    }
+  },
+  {
+    tag: 'parool', tagClass: 'tag-parool',
+    title: 'Lõplik teadmiste kontroll',
+    body: 'Milline väide küberturvalisuse kohta pardal on ÕIGE? Vali korrektne vastus.',
+    detail: 'Turvaofficer viib läbi\nmeeskonna instruktaaži enne\nväljasõitu. Vali õige väide:',
+    choices: [
+      { text: 'Küberrünnakud on suunatud ainult sõjalaevadele', correct: false },
+      { text: 'Kahefaktoriline autentimine tõstab turvalisust oluliselt', correct: true },
+      { text: 'Üks kord paigaldatud viirusetõrje kaitseb igavesti', correct: false },
+      { text: 'Avalik Wi-Fi on turvaline HTTPS kasutades', correct: false }
+    ],
+    feedback: {
+      correct: '✓ Õige! Kahefaktoriline autentimine (2FA) on üks tõhusamaid kaitsemeetmeid. Isegi parooli teades ei pääse ründaja sisse ilma teise faktorita.',
+      wrong: '✗ Kahefaktoriline autentimine (2FA) on võtmetähtsusega kaitsemeede. Kaubalaevad on sama tihti rünnakute all, viirusetõrjet tuleb uuendada, HTTPS ei kaitse pealtkuulamise eest avatud võrkudes.'
+    }
+  }
+];
+
+let currentQ = 0, score = 0, lives = 3, correctCount = 0, wrongCount = 0, answered = false;
+
+function startGame() {
+  show('game-screen');
+  loadQuestion();
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function loadQuestion() {
+  answered = false;
+  const q = questions[currentQ];
+  document.getElementById('scenario-tag').textContent = q.tag.toUpperCase();
+  document.getElementById('scenario-tag').className = 'scenario-tag ' + q.tagClass;
+  document.getElementById('scenario-title').textContent = q.title;
+  document.getElementById('scenario-body').textContent = q.body;
+  document.getElementById('scenario-detail').textContent = q.detail;
+  document.getElementById('progress-label').textContent = (currentQ + 1) + ' / ' + questions.length;
+  document.getElementById('progress-bar').style.width = ((currentQ + 1) / questions.length * 100) + '%';
+  document.getElementById('score-val').textContent = score;
+  updateLives();
+
+  const fb = document.getElementById('feedback-box');
+  fb.style.display = 'none'; fb.className = 'feedback-box';
+  document.getElementById('next-btn').style.display = 'none';
+
+  const choices = document.getElementById('choices');
+  choices.innerHTML = '';
+  q.choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c.text;
+    btn.onclick = () => selectAnswer(i, c.correct, q);
+    choices.appendChild(btn);
+  });
+}
+
+function selectAnswer(idx, correct, q) {
+  if (answered) return;
+  answered = true;
+  const btns = document.querySelectorAll('.choice-btn');
+  btns.forEach((b, i) => {
+    b.disabled = true;
+    if (q.choices[i].correct) b.classList.add('correct');
+  });
+  if (correct) {
+    btns[idx].classList.add('correct');
+    score += 100;
+    correctCount++;
+  } else {
+    btns[idx].classList.add('wrong');
+    lives = Math.max(0, lives - 1);
+    wrongCount++;
+    updateLives();
+  }
+  document.getElementById('score-val').textContent = score;
+
+  const fb = document.getElementById('feedback-box');
+  fb.className = 'feedback-box ' + (correct ? 'correct' : 'wrong');
+  fb.textContent = correct ? q.feedback.correct : q.feedback.wrong;
+  fb.style.display = 'block';
+
+  const nb = document.getElementById('next-btn');
+  nb.style.display = 'block';
+  nb.textContent = (currentQ < questions.length - 1 && lives > 0) ? 'Järgmine oht →' : 'Lõpeta missioon →';
+}
+
+function updateLives() {
+  const h = ['', '❤', '❤❤', '❤❤❤'];
+  document.getElementById('lives-val').textContent = h[Math.max(0, lives)];
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= questions.length || lives <= 0) {
+    showEnd();
+  } else {
+    loadQuestion();
+  }
+}
+
+function showEnd() {
+  show('end-screen');
+  document.getElementById('final-score').textContent = score;
+  document.getElementById('stat-correct').textContent = correctCount;
+  document.getElementById('stat-wrong').textContent = wrongCount;
+
+  const pct = score / (questions.length * 100);
+  let grade, tips;
+
+  if (pct >= 0.875) {
+    grade = '🏆 Suurepärane küber-detektiiv! Laev on kaitstud.';
+    tips = `<div class="tip-title">Tead kõige olulisemat:</div>
+      <div class="tip-item">Andmepüüki tuvastatakse domeeni, kiireloomulisuse ja kahtlaste linkide järgi</div>
+      <div class="tip-item">Avatud Wi-Fi on potentsiaalne lõks — kasuta alati VPN-i</div>
+      <div class="tip-item">Leitud USB-mälupulgad — ära ühenda kunagi</div>
+      <div class="tip-item">Finantstehingud — kinnita alati telefoni teel isiklikult</div>
+      <div class="tip-item">2FA kasutamine on üks tõhusamaid kaitsemeetmeid</div>`;
+  } else if (pct >= 0.625) {
+    grade = '✓ Hea töö! On mida parandada.';
+    tips = `<div class="tip-title">Korda neid teemasid:</div>
+      <div class="tip-item">Sotsiaaltehnilisus ja selle tunnused</div>
+      <div class="tip-item">Parooliturvalisus ja kahefaktoriline autentimine</div>
+      <div class="tip-item">Reeglid väliste andmekandjatega töötamiseks</div>
+      <div class="tip-item">Intsidentidest teavitamise protseduurid</div>`;
+  } else {
+    grade = '⚠ Laev on ohus. Läbi instruktaaž uuesti!';
+    tips = `<div class="tip-title">Pead kindlasti õppima:</div>
+      <div class="tip-item">Andmepüügi ja sotsiaaltehnilisuse alused</div>
+      <div class="tip-item">Paroolipoliitika ja kahefaktoriline autentimine</div>
+      <div class="tip-item">Võrkude ja väliste seadmete kasutamise reeglid</div>
+      <div class="tip-item">Intsidentidest teavitamise protseduurid</div>
+      <div class="tip-item">BEC-rünnakud ja kuidas neid ära tunda</div>`;
+  }
+
+  document.getElementById('final-grade').textContent = grade;
+  document.getElementById('final-tips').innerHTML = tips;
+}
+
+function restartGame() {
+  currentQ = 0; score = 0; lives = 3; correctCount = 0; wrongCount = 0;
+  show('game-screen');
+  loadQuestion();
+}
+</script>
+</body>
+</html>
